@@ -1,0 +1,18 @@
+[package]
+name = "lp-render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Livepine wgpu 渲染后端（P1：离屏渲染 → PNG）"
+
+[dependencies]
+lp-core = { path = "../lp-core" }
+wgpu.workspace = true
+image.workspace = true
+pollster.workspace = true
+bytemuck.workspace = true
+
+[dev-dependencies]
+# 测试用：读回 PNG 验证像素
+image = { workspace = true }

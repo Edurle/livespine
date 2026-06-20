@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/lp-core",
     "crates/lp-io",
+    "crates/lp-render",
     "crates/lp-cli",
 ]
 
@@ -11,12 +12,17 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.74"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/example/livepine"
+repository = "https://github.com/Edurle/livespine"
 
 [workspace.dependencies]
 # 序列化：仅 serde 派生宏（编译期，非运行时依赖），lp-core 允许
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# 渲染（P1）：仅 lp-render 使用
+wgpu = "22"
+image = { version = "0.25", default-features = false, features = ["png"] }
+pollster = "0.3"
+bytemuck = { version = "1", features = ["derive"] }
 
 [profile.release]
 lto = true

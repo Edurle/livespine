@@ -15,3 +15,7 @@ Thumbs.db
 
 # 临时
 *.tmp
+
+# 渲染输出（fixture 除外）
+*.png
+!tests/fixtures/**/*.png

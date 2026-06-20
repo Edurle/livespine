@@ -1,29 +1,52 @@
-//! Livepine CLI（P0：仅 solve 子命令）。
+//! Livepine CLI。
 //!
-//! 退出标准（docs 14-P0内核实现清单）：`livepine solve <path.lp>`
-//! → 加载、update_world、蒙皮，打印每根骨骼 world + 每个顶点坐标。
-//!
-//! 完整 CLI（inspect/diff/render 等）是 P6 的事。
+//! P0: `solve` 打印坐标。
+//! P1: `render` 离屏渲染到 PNG。
 
 use lp_core::skin::skin_region;
+use lp_render::{RegionDraw, Renderer};
 use std::path::Path;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 3 || args[1] != "solve" {
-        eprintln!("用法: livepine solve <path.lp>");
-        eprintln!("P0 仅支持 solve 子命令");
-        return ExitCode::FAILURE;
+    if args.len() < 3 {
+        return usage();
     }
-    let path = Path::new(&args[2]);
-    match run_solve(path) {
+    let result: Result<(), Box<dyn std::error::Error>> = match args[1].as_str() {
+        "solve" => run_solve(Path::new(&args[2])),
+        "render" => {
+            let out = args.iter().position(|a| a == "-o")
+                .and_then(|i| args.get(i + 1))
+                .map(String::as_str)
+                .unwrap_or("out.png");
+            let width = parse_opt(&args, "--width", 512);
+            let height = parse_opt(&args, "--height", 512);
+            run_render(Path::new(&args[2]), Path::new(out), width, height)
+        }
+        _ => return usage(),
+    };
+    match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("错误: {e}");
             ExitCode::FAILURE
         }
     }
+}
+
+fn usage() -> ExitCode {
+    eprintln!("用法:");
+    eprintln!("  livepine solve <path.lp>");
+    eprintln!("  livepine render <path.lp> [-o out.png] [--width N] [--height N]");
+    ExitCode::FAILURE
+}
+
+fn parse_opt(args: &[String], flag: &str, default: u32) -> u32 {
+    args.iter().position(|a| a == flag)
+        .and_then(|i| args.get(i + 1))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
 }
 
 fn run_solve(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -46,5 +69,36 @@ fn run_solve(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
             println!("vertex[{i}]  ({:.4}, {:.4})", p.x, p.y);
         }
     }
+    Ok(())
+}
+
+fn run_render(path: &Path, out: &Path, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let file = lp_io::LpFile::load(path)?;
+    let skeleton = file.build_skeleton();
+
+    // 蒙皮每个 region → RegionDraw（4 顶点 position + uv）
+    let mut draws = Vec::new();
+    for region in &file.regions {
+        let pts = skin_region(region, &skeleton);
+        if pts.len() != 4 {
+            return Err(format!("region '{}' 顶点数 {} ≠ 4（P1 仅支持矩形 region）", region.name, pts.len()).into());
+        }
+        // UV：左下(0,0) 右下(1,0) 右上(1,1) 左上(0,1)
+        // 注意 pts 顺序与 RegionAttachment::centered 一致：左下、右下、右上、左上
+        let vertices = [
+            [pts[0].x, pts[0].y, 0.0, 0.0],
+            [pts[1].x, pts[1].y, 1.0, 0.0],
+            [pts[2].x, pts[2].y, 1.0, 1.0],
+            [pts[3].x, pts[3].y, 0.0, 1.0],
+        ];
+        draws.push(RegionDraw {
+            vertices,
+            color: [1.0, 0.8, 0.4, 1.0], // 暖橙色（P1 程序上色）
+        });
+    }
+
+    let renderer = Renderer::new(width, height);
+    renderer.render_to_png(&draws, out);
+    println!("已渲染 {} 个 region → {}", draws.len(), out.display());
     Ok(())
 }
