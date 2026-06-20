@@ -112,7 +112,7 @@ fn run_render(path: &Path, out: &Path, width: u32, height: u32, anim: Option<&st
         }
         // UV：左下(0,0) 右下(1,0) 右上(1,1) 左上(0,1)
         // 注意 pts 顺序与 RegionAttachment::centered 一致：左下、右下、右上、左上
-        let vertices = [
+        let vertices = vec![
             [pts[0].x, pts[0].y, 0.0, 0.0],
             [pts[1].x, pts[1].y, 1.0, 0.0],
             [pts[2].x, pts[2].y, 1.0, 1.0],

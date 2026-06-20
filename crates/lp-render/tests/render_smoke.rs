@@ -17,7 +17,7 @@ fn render_centered_rect(width: u32, height: u32, color: [f32; 4]) -> image::Imag
     let cy = height as f32 / 2.0;
     let half = 50.0;
     let draws = vec![RegionDraw {
-        vertices: [
+        vertices: vec![
             [cx - half, cy - half, 0.0, 0.0],
             [cx + half, cy - half, 1.0, 0.0],
             [cx + half, cy + half, 1.0, 1.0],

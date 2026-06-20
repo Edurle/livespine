@@ -17,8 +17,9 @@ pub struct Renderer {
 
 /// 单个 region 的渲染数据（蒙皮后）。
 pub struct RegionDraw {
-    /// 4 顶点 × (position[2] + uv[2])，顺序：左下、右下、右上、左上
-    pub vertices: [[f32; 4]; 4],
+    /// 顶点 × (position[2] + uv[2])。矩形 region 为 4 顶点；mesh 可任意数量。
+    /// 多顶点时用扇形三角化（fan：以 v0 为中心）填充。
+    pub vertices: Vec<[f32; 4]>,
     /// 贴图颜色（RGBA，0~1）
     pub color: [f32; 4],
 }
@@ -70,14 +71,18 @@ impl Renderer {
         let mut indices: Vec<u16> = Vec::new();
         for r in regions {
             let base = verts.len() as u16;
+            let n = r.vertices.len() as u16;
             for v in &r.vertices {
                 // 像素 → NDC，y 翻转
                 let ndc_x = (v[0] / w) * 2.0 - 1.0;
                 let ndc_y = 1.0 - (v[1] / h) * 2.0;
                 verts.push(GpuVertex { position: [ndc_x, ndc_y], uv: [v[2], v[3]] });
             }
-            // 两个三角形：左下 右下 右上 / 左下 右上 左上
-            indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
+            // 扇形三角化（fan）：以 v0 为中心，生成 n-2 个三角形。
+            // 4 顶点时等价原来的两个三角形；多顶点 mesh 也能正确填充。
+            for i in 1..(n - 1) {
+                indices.extend_from_slice(&[base, base + i, base + i + 1]);
+            }
         }
 
         let vertex_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -221,12 +226,19 @@ impl Renderer {
                 timestamp_writes: None,
             });
             rpass.set_pipeline(&pipeline);
-            // 每个 region 画一次（每 4 顶点）
-            for i in 0..regions.len() {
+            // 每个 region 画一次，按实际顶点/索引数累积偏移（支持多顶点 mesh）
+            let mut vert_byte_off: u64 = 0;
+            let mut idx_byte_off: u64 = 0;
+            for (i, r) in regions.iter().enumerate() {
+                let n = r.vertices.len() as u32;
+                let tri_count = n.saturating_sub(2);
+                let idx_count = tri_count * 3;
                 rpass.set_bind_group(0, &bg_list[i], &[]);
-                rpass.set_vertex_buffer(0, vertex_buf.slice((i * 4 * 16) as u64..));
-                rpass.set_index_buffer(index_buf.slice((i * 6 * 2) as u64..), wgpu::IndexFormat::Uint16);
-                rpass.draw_indexed(0..6, 0, 0..1);
+                rpass.set_vertex_buffer(0, vertex_buf.slice(vert_byte_off..));
+                rpass.set_index_buffer(index_buf.slice(idx_byte_off..), wgpu::IndexFormat::Uint16);
+                rpass.draw_indexed(0..idx_count, 0, 0..1);
+                vert_byte_off += (n as u64) * 16; // 每顶点 16 字节
+                idx_byte_off += (idx_count as u64) * 2; // 每索引 2 字节
             }
         }
 
