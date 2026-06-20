@@ -1,0 +1,19 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "category": "transforms/parent_chain",
+  "name": "parent_chain",
+  "description": "两骨父子链：root 平移 (10,0)，child 沿局部 +x 平移 5。验证 world 矩阵自顶向下复合。",
+  "input": {
+    "skeleton": {
+      "bones": [
+        { "name": "root",  "parent": null, "length": 10.0,
+          "setup": { "x": 10.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } },
+        { "name": "child", "parent": 0,    "length": 5.0,
+          "setup": { "x": 5.0,  "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } }
+      ]
+    },
+    "regions": [],
+    "time": 0.0
+  }
+}

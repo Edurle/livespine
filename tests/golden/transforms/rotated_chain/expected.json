@@ -1,0 +1,16 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "outputs": {
+    "bones": [
+      { "name": "root",  "world": [0.0, 1.0, -1.0, 0.0, 0.0, 0.0] },
+      { "name": "child", "world": [0.0, 1.0, -1.0, 0.0, 0.0, 5.0] }
+    ]
+  },
+  "meta": {
+    "source": "hand-computed",
+    "note": "root 转 90°：a=cos90≈0,b=sin90=1,c=-1,d=cos90≈0。child 局部 (5,0) 经 root → 世界 (0,5)。",
+    "generated": "2026-06-20",
+    "tolerance": 1e-4
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "category": "skinning/two_bone_blend",
+  "name": "two_bone_blend",
+  "description": "两骨独立（无父子），顶点权重各 0.5。bind pose 在原点；动画后 a 留原点、b 移到 (10,0)。验证 LBS 加权混合：顶点 local (2,0) 应在两骨位置间插值到 (7,0)。",
+  "input": {
+    "skeleton": {
+      "bones": [
+        { "name": "a", "parent": null, "length": 5.0,
+          "setup": { "x": 0.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } },
+        { "name": "b", "parent": null, "length": 5.0,
+          "setup": { "x": 0.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } }
+      ]
+    },
+    "pose": [
+      { "x": 0.0,  "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 },
+      { "x": 10.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 }
+    ],
+    "regions": [],
+    "vertices": [
+      { "local": [2.0, 0.0], "weights": [[0, 0.5], [1, 0.5]] }
+    ],
+    "time": 0.0
+  }
+}

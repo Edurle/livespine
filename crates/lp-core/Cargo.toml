@@ -1,0 +1,14 @@
+[package]
+name = "lp-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Livepine 核心数学与数据模型内核（纯数值，无 I/O）"
+
+[dependencies]
+serde.workspace = true
+
+[dev-dependencies]
+# 仅测试用，不算 lp-core 的运行时依赖
+serde_json.workspace = true

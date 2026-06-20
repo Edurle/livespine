@@ -1,0 +1,19 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "category": "transforms/rotated_chain",
+  "name": "rotated_chain",
+  "description": "root 旋转 90°（π/2），child 沿局部 +x 平移 5。验证旋转下父子复合：child 世界应在 root 上方 5。",
+  "input": {
+    "skeleton": {
+      "bones": [
+        { "name": "root",  "parent": null, "length": 5.0,
+          "setup": { "x": 0.0, "y": 0.0, "rotation": 1.5707963267948966, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } },
+        { "name": "child", "parent": 0,    "length": 5.0,
+          "setup": { "x": 5.0, "y": 0.0, "rotation": 0.0,                "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } }
+      ]
+    },
+    "regions": [],
+    "time": 0.0
+  }
+}

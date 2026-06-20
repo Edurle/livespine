@@ -1,0 +1,16 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "outputs": {
+    "bones": [
+      { "name": "root",  "world": [1.0, 0.0, 0.0, 1.0, 10.0, 0.0] },
+      { "name": "child", "world": [1.0, 0.0, 0.0, 1.0, 15.0, 0.0] }
+    ]
+  },
+  "meta": {
+    "source": "hand-computed",
+    "note": "root setup (10,0) → world wx=10；child = root·translate(5,0) → wx=15",
+    "generated": "2026-06-20",
+    "tolerance": 1e-4
+  }
+}

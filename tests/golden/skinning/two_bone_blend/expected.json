@@ -1,0 +1,15 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "outputs": {
+    "vertices": [
+      { "x": 7.0, "y": 0.0 }
+    ]
+  },
+  "meta": {
+    "source": "hand-computed",
+    "note": "bind 全在原点，bind_inv=I。pose 后：D_a=I（a 留原点），D_b=translate(10,0)。顶点 local (2,0)：D_a·v=(2,0)，D_b·v=(12,0)，混合 0.5*(2,0)+0.5*(12,0)=(7,0)。",
+    "generated": "2026-06-20",
+    "tolerance": 1e-3
+  }
+}

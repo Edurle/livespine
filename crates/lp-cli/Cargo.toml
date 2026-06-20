@@ -1,0 +1,15 @@
+[package]
+name = "lp-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Livepine 命令行（P0: solve 子命令）"
+
+[[bin]]
+name = "livepine"
+path = "src/main.rs"
+
+[dependencies]
+lp-core = { path = "../lp-core" }
+lp-io = { path = "../lp-io" }
