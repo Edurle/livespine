@@ -1,0 +1,30 @@
+[package]
+name = "livepine-editor"
+version = "0.1.0"
+description = "Livepine 编辑器（只读查看器）"
+edition = "2021"
+rust-version = "1.74"
+
+[lib]
+name = "livepine_editor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri 2
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 复用内核 workspace crate（路径引用）
+lp-core = { path = "../../crates/lp-core" }
+lp-io = { path = "../../crates/lp-io" }
+lp-anim = { path = "../../crates/lp-anim" }
+lp-constraints = { path = "../../crates/lp-constraints" }
+
+[features]
+# 默认 custom-protocol 用打包后的前端
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

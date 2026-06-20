@@ -1,0 +1,10 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# 日志
+*.log

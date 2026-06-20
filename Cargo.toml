@@ -8,6 +8,9 @@ members = [
     "crates/lp-render",
     "crates/lp-cli",
 ]
+exclude = [
+    "editor/src-tauri",  # Tauri 应用独立于主 workspace
+]
 
 [workspace.package]
 version = "0.1.0"
