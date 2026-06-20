@@ -37,7 +37,8 @@ fn ik_bends_the_leg() {
         bones: vec![0, 1], target: [100.0, 100.0],
         mix: 1.0, bend_direction: 1, softness: 0.0,
     })];
-    solve_pipeline(&mut sk, &constraints);
+    let mut states = lp_constraints::PhysicsStateMap::new();
+    solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
 
     assert!(
         (sk.bones[0].local.rotation - rot_before_thigh).abs() > 0.01,
@@ -57,7 +58,8 @@ fn ik_end_reaches_target() {
         bones: vec![0, 1], target: [128.0, 90.0],
         mix: 1.0, bend_direction: 1, softness: 0.0,
     })];
-    solve_pipeline(&mut sk, &constraints);
+    let mut states = lp_constraints::PhysicsStateMap::new();
+    solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
 
     // shin 末端 = shin 根部 + 50 沿 shin 世界方向
     let shin = &sk.bones[1];
@@ -77,7 +79,8 @@ fn ik_no_nan() {
         bones: vec![0, 1], target: [128.0, 90.0],
         mix: 1.0, bend_direction: 1, softness: 0.0,
     })];
-    solve_pipeline(&mut sk, &constraints);
+    let mut states = lp_constraints::PhysicsStateMap::new();
+    solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
     for b in &sk.bones {
         assert!(b.local.rotation.is_finite(), "rotation 不应 NaN");
         assert!(b.world.wx.is_finite() && b.world.wy.is_finite(), "world 不应 NaN");
@@ -89,15 +92,17 @@ fn different_targets_different_poses() {
     // 不同 target → 不同弯曲（验证 IK 真的在响应 target）
     let mut sk1 = build_leg();
     sk1.update_world();
+    let mut st1 = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk1, &[Constraint::Ik(IkConstraint {
         bones: vec![0, 1], target: [128.0, 90.0], mix: 1.0, bend_direction: 1, softness: 0.0,
-    })]);
+    })], &mut st1, 0.0);
 
     let mut sk2 = build_leg();
     sk2.update_world();
+    let mut st2 = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk2, &[Constraint::Ik(IkConstraint {
         bones: vec![0, 1], target: [160.0, 90.0], mix: 1.0, bend_direction: 1, softness: 0.0,
-    })]);
+    })], &mut st2, 0.0);
 
     assert!(
         (sk1.bones[0].local.rotation - sk2.bones[0].local.rotation).abs() > 0.05,

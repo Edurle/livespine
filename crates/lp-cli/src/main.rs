@@ -3,7 +3,7 @@
 //! P0: `solve` 打印坐标。
 //! P1: `render` 离屏渲染到 PNG。
 
-use lp_core::skin::transform_region;
+use lp_core::skin::{skin_region, transform_region};
 use lp_render::{RegionDraw, Renderer};
 use std::path::Path;
 use std::process::ExitCode;
@@ -92,17 +92,23 @@ fn run_render(path: &Path, out: &Path, width: u32, height: u32, anim: Option<&st
     }
 
     // 约束求解（IK 等，按声明顺序）。每个约束后流水线内部会重算 world。
+    // CLI 单次采样：Physics 用 dt=0（冻结），无跨帧状态。
     if !file.constraints.is_empty() {
-        lp_constraints::solve_pipeline(&mut skeleton, &file.constraints);
+        let mut states = lp_constraints::PhysicsStateMap::new();
+        lp_constraints::solve_pipeline(&mut skeleton, &file.constraints, &mut states, 0.0);
     }
 
     // 变换每个 region → RegionDraw（4 顶点 position + uv）
     // region 用 Unity 式父子变换（骨骼动顶点动），非 LBS
     let mut draws = Vec::new();
     for region in &file.regions {
-        let pts = transform_region(region, &skeleton);
-        if pts.len() != 4 {
-            return Err(format!("region '{}' 顶点数 {} ≠ 4（P1 仅支持矩形 region）", region.name, pts.len()).into());
+        let pts = if region.use_skin {
+            skin_region(region, &skeleton)
+        } else {
+            transform_region(region, &skeleton)
+        };
+        if pts.len() < 3 {
+            return Err(format!("region '{}' 顶点数 {} < 3", region.name, pts.len()).into());
         }
         // UV：左下(0,0) 右下(1,0) 右上(1,1) 左上(0,1)
         // 注意 pts 顺序与 RegionAttachment::centered 一致：左下、右下、右上、左上

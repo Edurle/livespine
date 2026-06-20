@@ -29,12 +29,13 @@ async function loadDefault() {
   }
 }
 
-async function refreshPose() {
+async function refreshPose(mode: "play" | "seek" = "seek") {
   if (!info.value) return;
   try {
     pose.value = await invoke<Pose>("sample_pose", {
       anim: currentAnim.value,
       time: time.value,
+      mode,
     });
   } catch (e) {
     statusMsg.value = `采样失败：${e}`;
@@ -58,20 +59,20 @@ function loop() {
     if (info.value && info.value.duration > 0) {
       time.value = (time.value + dt) % info.value.duration;
     }
-    await refreshPose();
+    await refreshPose("play");
     if (playing.value) loop();
   });
 }
 
 function onSeek(t: number) {
   time.value = t;
-  refreshPose();
+  refreshPose("seek");
 }
 
 function selectAnim(name: string) {
   currentAnim.value = name || null;
   time.value = 0;
-  refreshPose();
+  refreshPose("seek");
 }
 
 onUnmounted(() => cancelAnimationFrame(rafId));

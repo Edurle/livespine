@@ -128,6 +128,7 @@ mod tests {
         let region = RegionAttachment {
             name: "r".into(), bone: 0, width: 20.0, height: 1.0,
             vertices: vec![Vertex::single(Vec2::new(10.0, 0.0), 0)],
+            use_skin: false,
         };
         let before = transform_region(&region, &sk);
         assert!(approx(before[0].x, 10.0) && approx(before[0].y, 0.0));

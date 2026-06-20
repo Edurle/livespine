@@ -40,9 +40,11 @@ pub struct SkeletonInfo {
     pub duration: f32,
 }
 
-/// 全局状态：已加载的 LpFile（Mutex 保护）。
+/// 全局状态：已加载的 LpFile + Physics 跨帧状态（Mutex 保护）。
 pub struct AppState {
     pub file: Mutex<Option<LpFile>>,
+    /// Physics 跨帧状态：Play 模式累积，Seek 模式重置。
+    pub physics_states: Mutex<lp_constraints::PhysicsStateMap>,
 }
 
 /// 加载 .lp 文件（指定路径）。
@@ -71,10 +73,14 @@ fn load_from(path: &str, state: State<'_, AppState>) -> Result<SkeletonInfo, Str
 }
 
 /// 采样某动画某时刻的姿态。
+///
+/// - mode="play":Physics 用固定 dt 推进跨帧状态（实时播放，真实惯性）
+/// - mode="seek":Physics 冻结（dt=0，清状态），用于拖进度条精确定位
 #[tauri::command]
 fn sample_pose(
     anim: Option<String>,
     time: f32,
+    mode: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Pose, String> {
     let guard = state.file.lock().map_err(|e| e.to_string())?;
@@ -92,9 +98,16 @@ fn sample_pose(
         }
     }
 
-    // 约束求解
+    // 约束求解：Play 推进 Physics（固定 60Hz dt），Seek 冻结 + 清状态
+    let is_play = mode.as_deref() == Some("play");
+    let dt = if is_play { 1.0 / 60.0 } else { 0.0 };
+    if !is_play {
+        // Seek 模式：重置 Physics 状态，避免拖动时残留累积
+        state.physics_states.lock().map_err(|e| e.to_string())?.clear();
+    }
     if !file.constraints.is_empty() {
-        lp_constraints::solve_pipeline(&mut skeleton, &file.constraints);
+        let mut pstates = state.physics_states.lock().map_err(|e| e.to_string())?;
+        lp_constraints::solve_pipeline(&mut skeleton, &file.constraints, &mut pstates, dt);
     }
 
     // 骨骼绘制数据：根 + 末端
@@ -114,12 +127,18 @@ fn sample_pose(
     }).collect();
 
     // region 绘制数据：蒙皮后的世界顶点
+    // use_skin=true 用 LBS（多骨骼布料），否则 Unity 式父子变换（单骨骼 region）
     let regions = file.regions.iter().map(|r| {
-        let pts = lp_core::skin::transform_region(r, &skeleton);
+        let pts = if r.use_skin {
+            lp_core::skin::skin_region(r, &skeleton)
+        } else {
+            lp_core::skin::transform_region(r, &skeleton)
+        };
         RegionDraw {
             name: r.name.clone(),
             vertices: pts.iter().map(|p| [p.x, p.y]).collect(),
-            color: [1.0, 0.6, 0.3, 1.0], // 暖橙色
+            // use_skin 的 region（披风）用红色，便于区分；其余橙色
+            color: if r.use_skin { [1.0, 0.2, 0.2, 1.0] } else { [1.0, 0.6, 0.3, 1.0] },
         }
     }).collect();
 
@@ -131,6 +150,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             file: Mutex::new(None),
+            physics_states: Mutex::new(std::collections::HashMap::new()),
         })
         .invoke_handler(tauri::generate_handler![load_skeleton, load_default, sample_pose])
         .run(tauri::generate_context!())

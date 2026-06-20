@@ -30,14 +30,34 @@ function draw() {
   // 先画 region 多边形（纯色填充）—— 骨骼画在其上，避免被不透明矩形遮挡
   for (const r of pose.regions) {
     if (r.vertices.length < 3) continue;
-    ctx.fillStyle = `rgba(${Math.round(r.color[0] * 255)},${Math.round(r.color[1] * 255)},${Math.round(r.color[2] * 255)},${r.color[3]})`;
-    ctx.beginPath();
-    ctx.moveTo(r.vertices[0][0], r.vertices[0][1]);
-    for (let i = 1; i < r.vertices.length; i++) {
-      ctx.lineTo(r.vertices[i][0], r.vertices[i][1]);
+    const fill = `rgba(${Math.round(r.color[0] * 255)},${Math.round(r.color[1] * 255)},${Math.round(r.color[2] * 255)},${r.color[3]})`;
+    const stroke = `rgba(${Math.round(r.color[0] * 200)},${Math.round(r.color[1] * 200)},${Math.round(r.color[2] * 200)},1)`;
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+
+    if (r.vertices.length === 4) {
+      // 单四边形（普通 region）
+      ctx.beginPath();
+      ctx.moveTo(r.vertices[0][0], r.vertices[0][1]);
+      for (let i = 1; i < 4; i++) ctx.lineTo(r.vertices[i][0], r.vertices[i][1]);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // 多顶点 mesh（披风）：每 4 顶点一个独立四边形，避免自交/空心
+      // 顶点按段排列：段1[v0..v3] 段2[v4..v7] ...
+      for (let i = 0; i + 3 < r.vertices.length; i += 4) {
+        ctx.beginPath();
+        ctx.moveTo(r.vertices[i][0], r.vertices[i][1]);
+        ctx.lineTo(r.vertices[i + 1][0], r.vertices[i + 1][1]);
+        ctx.lineTo(r.vertices[i + 2][0], r.vertices[i + 2][1]);
+        ctx.lineTo(r.vertices[i + 3][0], r.vertices[i + 3][1]);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
     }
-    ctx.closePath();
-    ctx.fill();
   }
 
   // 后画骨骼（线段 + 关节圆点）—— 画在最上层

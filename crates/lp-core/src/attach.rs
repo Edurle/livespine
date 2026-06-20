@@ -37,6 +37,10 @@ pub struct RegionAttachment {
     pub height: f32,
     /// 4 个矩形角顶点（左下、右下、右上、左上），坐标相对 attachment 局部空间。
     pub vertices: Vec<Vertex>,
+    /// 是否用 LBS 多骨骼蒙皮（true 时顶点按 weights 加权混合，用于 mesh/布料）。
+    /// false（默认）：Unity 式父子变换（单骨骼 region）。
+    #[serde(default)]
+    pub use_skin: bool,
 }
 
 impl RegionAttachment {
@@ -51,7 +55,7 @@ impl RegionAttachment {
             Vec2::new(-hw, hh),
         ];
         let vertices = corners.iter().map(|&p| Vertex::single(p, bone)).collect();
-        Self { name: name.into(), bone, width, height, vertices }
+        Self { name: name.into(), bone, width, height, vertices, use_skin: false }
     }
 
     /// 校验：权重和 ≈ 1。
