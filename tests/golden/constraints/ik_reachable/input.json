@@ -1,0 +1,26 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "category": "constraints/ik_reachable",
+  "name": "ik_reachable",
+  "description": "双骨 IK：两骨各长 50（臂展 100），target (50,30) 在可达范围内。验证余弦定理解析解 + bendDirection=1。",
+  "input": {
+    "skeleton": {
+      "bones": [
+        { "name": "a", "parent": null, "length": 50.0,
+          "setup": { "x": 0.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } },
+        { "name": "b", "parent": 0, "length": 50.0,
+          "setup": { "x": 50.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } }
+      ]
+    },
+    "constraint": {
+      "type": "ik",
+      "bones": [0, 1],
+      "target": [50.0, 30.0],
+      "mix": 1.0,
+      "bend_direction": 1,
+      "softness": 0.0,
+      "stretch": 0.0
+    }
+  }
+}

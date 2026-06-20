@@ -1,0 +1,26 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "category": "constraints/physics_gravity",
+  "name": "physics_gravity",
+  "description": "Physics 阻尼弹簧：单骨受重力，多帧推进（60Hz）。验证半隐式 Euler 稳定性 + 阻尼衰减。期望帧 1/10/30/60 的 rotation。",
+  "input": {
+    "skeleton": {
+      "bones": [
+        { "name": "b", "parent": null, "length": 10.0,
+          "setup": { "x": 0.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } }
+      ]
+    },
+    "constraint": {
+      "type": "physics",
+      "bones": [0],
+      "bone_inertia": 0.0,
+      "strength": 0.0,
+      "damping": 0.5,
+      "gravity": [0.0, -50.0],
+      "mass": 1.0,
+      "translate_mix": 0.0
+    },
+    "frames": 60
+  }
+}

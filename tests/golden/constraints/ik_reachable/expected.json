@@ -1,0 +1,16 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "outputs": {
+    "bones": [
+      { "rotation": -0.4078 },
+      { "rotation": 1.0808 }
+    ]
+  },
+  "meta": {
+    "source": "hand-computed-verified",
+    "note": "双骨 IK 余弦定理解析解。target (50,30) 在臂展内，bendDirection=1。",
+    "generated": "2026-06-20",
+    "tolerance": 1e-3
+  }
+}

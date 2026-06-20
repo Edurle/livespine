@@ -1,0 +1,16 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "outputs": {
+    "bones": [
+      { "rotation": 1.4887 },
+      { "rotation": 1.0808 }
+    ]
+  },
+  "meta": {
+    "source": "hand-computed-verified",
+    "note": "bendDirection=-1 反弯。b 旋转同 ik_reachable（1.0808），a 朝相反方向（1.4887 vs -0.4078）。",
+    "generated": "2026-06-20",
+    "tolerance": 1e-3
+  }
+}

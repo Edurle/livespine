@@ -109,6 +109,10 @@ fn collect_cases() -> Vec<PathBuf> {
         for cat in entries.flatten() {
             let cat_path = cat.path();
             if cat_path.is_dir() {
+                // constraints/ 目录的用例由 lp-constraints 的黄金值加载器处理，跳过。
+                if cat_path.file_name() == Some(std::ffi::OsStr::new("constraints")) {
+                    continue;
+                }
                 if let Ok(subs) = fs::read_dir(&cat_path) {
                     for c in subs.flatten() {
                         if c.path().join("input.json").exists() {

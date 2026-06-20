@@ -1,0 +1,26 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "category": "constraints/ik_bend_negative",
+  "name": "ik_bend_negative",
+  "description": "双骨 IK bendDirection=-1（反弯）。与 ik_reachable 同 target，应产生镜像关节角（b 旋转同号，a 符号相反方向）。",
+  "input": {
+    "skeleton": {
+      "bones": [
+        { "name": "a", "parent": null, "length": 50.0,
+          "setup": { "x": 0.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } },
+        { "name": "b", "parent": 0, "length": 50.0,
+          "setup": { "x": 50.0, "y": 0.0, "rotation": 0.0, "scale_x": 1.0, "scale_y": 1.0, "shear_x": 0.0, "shear_y": 0.0 } }
+      ]
+    },
+    "constraint": {
+      "type": "ik",
+      "bones": [0, 1],
+      "target": [50.0, 30.0],
+      "mix": 1.0,
+      "bend_direction": -1,
+      "softness": 0.0,
+      "stretch": 0.0
+    }
+  }
+}

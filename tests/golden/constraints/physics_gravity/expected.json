@@ -1,0 +1,19 @@
+{
+  "format": "lp-golden",
+  "version": "0.1.0",
+  "outputs": {
+    "frames": [
+      { "rotations": [-0.0139] },
+      { "rotations": [-2.8090] },
+      { "rotations": [2.4268] },
+      { "rotations": [1.7965] }
+    ]
+  },
+  "meta": {
+    "source": "python-reference",
+    "note": "Physics 半隐式 Euler 多帧。骨初始 rotation=0，受重力 -50，damping=0.5。frame 1/10/30/60 采样。验证不发散 + 阻尼振荡。",
+    "sampled_frames": [1, 10, 30, 60],
+    "generated": "2026-06-20",
+    "tolerance": 1e-2
+  }
+}

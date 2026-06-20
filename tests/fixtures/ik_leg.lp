@@ -24,7 +24,7 @@
       "bones": [0, 1],
       "target": [128.0, 90.0],
       "mix": 1.0,
-      "bendDirection": 1,
+      "bend_direction": 1,
       "softness": 0.0 }
   ]
 }

@@ -9,3 +9,6 @@ description = "Livepine 约束系统（IK / 求解流水线）"
 [dependencies]
 lp-core = { path = "../lp-core" }
 serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
