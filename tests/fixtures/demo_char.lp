@@ -20,5 +20,22 @@
         { "local": [-30.0,  70.0], "weights": [[1, 1.0]] }
       ]
     }
+  ],
+  "animations": [
+    {
+      "name": "swing",
+      "duration": 2.0,
+      "timelines": [
+        {
+          "bone": 1,
+          "property": "Rotate",
+          "keyframes": [
+            { "time": 0.0, "value": -0.6, "curve": {"kind":"Linear"} },
+            { "time": 1.0, "value":  0.6, "curve": {"kind":"Linear"} },
+            { "time": 2.0, "value": -0.6, "curve": {"kind":"Linear"} }
+          ]
+        }
+      ]
+    }
   ]
 }

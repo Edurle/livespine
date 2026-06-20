@@ -5,11 +5,12 @@
 //!
 //! 格式见 docs 06-数据模型与序列化。
 
+use lp_anim::Animation;
 use lp_core::attach::RegionAttachment;
 use lp_core::skeleton::{BoneData, Skeleton};
 use serde::{Deserialize, Serialize};
 
-/// `.lp` 文件顶层结构（P0 最小集）。
+/// `.lp` 文件顶层结构。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LpFile {
     pub format: String,
@@ -17,6 +18,8 @@ pub struct LpFile {
     pub skeleton: SkeletonDef,
     #[serde(default)]
     pub regions: Vec<RegionAttachment>,
+    #[serde(default)]
+    pub animations: Vec<Animation>,
 }
 
 /// 骨架定义（P0：仅骨骼数组）。
@@ -52,7 +55,15 @@ impl LpFile {
         for r in &self.regions {
             r.validate_weights().map_err(LpError::Invalid)?;
         }
+        for a in &self.animations {
+            a.validate().map_err(LpError::Invalid)?;
+        }
         Ok(())
+    }
+
+    /// 按名查找动画。
+    pub fn find_anim(&self, name: &str) -> Option<&Animation> {
+        self.animations.iter().find(|a| a.name == name)
     }
 
     /// 构建运行时骨架实例（已 update_world + precompute_bind_inverse）。
@@ -91,10 +102,41 @@ mod tests {
                 }],
             },
             regions: vec![RegionAttachment::centered("rect", 0, 4.0, 2.0)],
+            animations: vec![],
         };
         let json = f.to_json_pretty().unwrap();
         let back = LpFile::from_json(&json).unwrap();
         assert_eq!(back.skeleton.bones.len(), 1);
         assert_eq!(back.regions.len(), 1);
+    }
+
+    #[test]
+    fn find_anim_works() {
+        use lp_anim::{Animation, Keyframe, Property, Timeline};
+        use lp_core::math::BoneLocal;
+        let f = LpFile {
+            format: "lp".into(),
+            version: "0.1.0".into(),
+            skeleton: SkeletonDef {
+                bones: vec![BoneData {
+                    name: "root".into(), parent: None, length: 10.0,
+                    setup: BoneLocal::DEFAULT,
+                }],
+            },
+            regions: vec![],
+            animations: vec![Animation {
+                name: "wave".into(),
+                duration: 1.0,
+                timelines: vec![Timeline {
+                    bone: 0, property: Property::Rotate,
+                    keyframes: vec![
+                        Keyframe { time: 0.0, value: 0.0, curve: lp_anim::Curve::LINEAR },
+                        Keyframe { time: 1.0, value: 1.0, curve: lp_anim::Curve::LINEAR },
+                    ],
+                }],
+            }],
+        };
+        assert!(f.find_anim("wave").is_some());
+        assert!(f.find_anim("nope").is_none());
     }
 }

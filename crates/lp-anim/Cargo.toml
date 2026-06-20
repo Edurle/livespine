@@ -1,14 +1,11 @@
 [package]
-name = "lp-io"
+name = "lp-anim"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Livepine .lp/.lpc 序列化与校验"
+description = "Livepine 动画系统（关键帧、bezier 插值、AnimationState）"
 
 [dependencies]
 lp-core = { path = "../lp-core" }
-lp-anim = { path = "../lp-anim" }
 serde.workspace = true
-serde_json.workspace = true
-thiserror = "1"

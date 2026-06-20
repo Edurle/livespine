@@ -13,4 +13,5 @@ path = "src/main.rs"
 [dependencies]
 lp-core = { path = "../lp-core" }
 lp-io = { path = "../lp-io" }
+lp-anim = { path = "../lp-anim" }
 lp-render = { path = "../lp-render" }

@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/lp-core",
     "crates/lp-io",
+    "crates/lp-anim",
     "crates/lp-render",
     "crates/lp-cli",
 ]

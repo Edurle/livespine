@@ -22,7 +22,12 @@ fn main() -> ExitCode {
                 .unwrap_or("out.png");
             let width = parse_opt(&args, "--width", 512);
             let height = parse_opt(&args, "--height", 512);
-            run_render(Path::new(&args[2]), Path::new(out), width, height)
+            let anim = args.iter().position(|a| a == "--anim")
+                .and_then(|i| args.get(i + 1)).cloned();
+            let time = args.iter().position(|a| a == "--time")
+                .and_then(|i| args.get(i + 1))
+                .and_then(|v| v.parse::<f32>().ok());
+            run_render(Path::new(&args[2]), Path::new(out), width, height, anim.as_deref(), time)
         }
         _ => return usage(),
     };
@@ -72,9 +77,19 @@ fn run_solve(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn run_render(path: &Path, out: &Path, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
+fn run_render(path: &Path, out: &Path, width: u32, height: u32, anim: Option<&str>, time: Option<f32>) -> Result<(), Box<dyn std::error::Error>> {
     let file = lp_io::LpFile::load(path)?;
-    let skeleton = file.build_skeleton();
+    let mut skeleton = file.build_skeleton();
+
+    // 若指定动画，采样第 time 秒并 apply（在 setup 之上）
+    if let (Some(anim_name), Some(t)) = (anim, time) {
+        let animation = file.find_anim(anim_name)
+            .ok_or_else(|| format!("动画 '{anim_name}' 不存在"))?;
+        let mut state = lp_anim::AnimationState::new(animation);
+        state.seek(t);
+        state.apply(&mut skeleton);
+        skeleton.update_world();
+    }
 
     // 变换每个 region → RegionDraw（4 顶点 position + uv）
     // region 用 Unity 式父子变换（骨骼动顶点动），非 LBS
