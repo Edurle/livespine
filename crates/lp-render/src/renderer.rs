@@ -32,14 +32,27 @@ struct GpuVertex {
 }
 
 impl Renderer {
-    /// 初始化 wgpu（headless，无 Surface）。
+    /// 初始化 wgpu（headless，无 Surface）。默认用高性能 GPU。
     pub fn new(width: u32, height: u32) -> Self {
+        Self::new_with_options(width, height, false)
+    }
+
+    /// 初始化 wgpu，可选软件渲染。
+    ///
+    /// - `prefer_software=true`：用 CPU 软件适配器（Microsoft Basic Render Driver），
+    ///   慢但稳定，适合测试（绕开 GPU 驱动 flaky）。
+    /// - `prefer_software=false`：高性能 GPU（默认，生产用）。
+    pub fn new_with_options(width: u32, height: u32, prefer_software: bool) -> Self {
         pollster::block_on(async {
             let instance = wgpu::Instance::default();
             let adapter = instance
                 .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::default(),
-                    force_fallback_adapter: false,
+                    power_preference: if prefer_software {
+                        wgpu::PowerPreference::LowPower
+                    } else {
+                        wgpu::PowerPreference::HighPerformance
+                    },
+                    force_fallback_adapter: prefer_software,
                     compatible_surface: None,
                 })
                 .await
