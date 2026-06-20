@@ -35,7 +35,7 @@ fn ik_bends_the_leg() {
     // target 在大腿斜下方（不在正下方），两骨都应弯曲
     let constraints = vec![Constraint::Ik(IkConstraint {
         bones: vec![0, 1], target: [100.0, 100.0],
-        mix: 1.0, bend_direction: 1, softness: 0.0,
+        mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
     })];
     let mut states = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
@@ -56,7 +56,7 @@ fn ik_end_reaches_target() {
     sk.update_world();
     let constraints = vec![Constraint::Ik(IkConstraint {
         bones: vec![0, 1], target: [128.0, 90.0],
-        mix: 1.0, bend_direction: 1, softness: 0.0,
+        mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
     })];
     let mut states = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
@@ -77,7 +77,7 @@ fn ik_no_nan() {
     sk.update_world();
     let constraints = vec![Constraint::Ik(IkConstraint {
         bones: vec![0, 1], target: [128.0, 90.0],
-        mix: 1.0, bend_direction: 1, softness: 0.0,
+        mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
     })];
     let mut states = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
@@ -94,14 +94,14 @@ fn different_targets_different_poses() {
     sk1.update_world();
     let mut st1 = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk1, &[Constraint::Ik(IkConstraint {
-        bones: vec![0, 1], target: [128.0, 90.0], mix: 1.0, bend_direction: 1, softness: 0.0,
+        bones: vec![0, 1], target: [128.0, 90.0], mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
     })], &mut st1, 0.0);
 
     let mut sk2 = build_leg();
     sk2.update_world();
     let mut st2 = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk2, &[Constraint::Ik(IkConstraint {
-        bones: vec![0, 1], target: [160.0, 90.0], mix: 1.0, bend_direction: 1, softness: 0.0,
+        bones: vec![0, 1], target: [160.0, 90.0], mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
     })], &mut st2, 0.0);
 
     assert!(
@@ -119,14 +119,14 @@ fn bend_direction_mirrors_pose() {
     sk_pos.update_world();
     let mut st_pos = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk_pos, &[Constraint::Ik(IkConstraint {
-        bones: vec![0, 1], target, mix: 1.0, bend_direction: 1, softness: 0.0,
+        bones: vec![0, 1], target, mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
     })], &mut st_pos, 0.0);
 
     let mut sk_neg = build_leg();
     sk_neg.update_world();
     let mut st_neg = lp_constraints::PhysicsStateMap::new();
     solve_pipeline(&mut sk_neg, &[Constraint::Ik(IkConstraint {
-        bones: vec![0, 1], target, mix: 1.0, bend_direction: -1, softness: 0.0,
+        bones: vec![0, 1], target, mix: 1.0, bend_direction: -1, softness: 0.0, stretch: 0.0,
     })], &mut st_neg, 0.0);
 
     // shin rotation 应符号相反（bendDirection 控制弯曲方向）。

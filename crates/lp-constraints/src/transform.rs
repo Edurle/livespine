@@ -14,7 +14,7 @@ pub struct TransformConstraint {
     pub source: usize,
     /// 目标骨骼索引列表（可一拖多）。
     pub bones: Vec<usize>,
-    /// 偏移量（旋转弧度/平移/缩放）。
+    /// 偏移量（旋转弧度/平移/缩放/剪切）。
     #[serde(default)]
     pub offset_rotate: f32,
     #[serde(default)]
@@ -25,6 +25,8 @@ pub struct TransformConstraint {
     pub offset_scale_x: f32,
     #[serde(default = "one")]
     pub offset_scale_y: f32,
+    #[serde(default)]
+    pub offset_shear_x: f32,
     /// 混合强度 0~1。
     #[serde(default)]
     pub rotate_mix: f32,
@@ -32,6 +34,8 @@ pub struct TransformConstraint {
     pub translate_mix: f32,
     #[serde(default)]
     pub scale_mix: f32,
+    #[serde(default)]
+    pub shear_mix: f32,
 }
 
 fn one() -> f32 { 1.0 }
@@ -46,6 +50,8 @@ impl TransformConstraint {
 }
 
 /// 求解 Transform 约束（增量式）。
+///
+/// 注：当前仅 world 空间计算。local 空间模式（头部跟随等场景）留待后续。
 pub fn solve_transform(skeleton: &mut Skeleton, c: &TransformConstraint) {
     // 取 source 世界状态
     let src_world = skeleton.bones[c.source].world;
@@ -76,6 +82,13 @@ pub fn solve_transform(skeleton: &mut Skeleton, c: &TransformConstraint) {
             let factor_y = 1.0 + (src_sy * c.offset_scale_y - cur_sy) * c.scale_mix;
             skeleton.bones[target_idx].local.scale_x *= factor_x;
             skeleton.bones[target_idx].local.scale_y *= factor_y;
+        }
+        // 剪切：增量叠加（source 无独立 shear 字段，复制 source 的 shearX + offset）
+        if c.shear_mix != 0.0 {
+            let src_shear = skeleton.bones[c.source].local.shear_x;
+            let cur_shear = skeleton.bones[target_idx].local.shear_x;
+            skeleton.bones[target_idx].local.shear_x +=
+                (src_shear + c.offset_shear_x - cur_shear) * c.shear_mix;
         }
     }
 }
@@ -113,7 +126,7 @@ mod tests {
             source: 0, bones: vec![1],
             offset_rotate: 0.0, offset_x: 0.0, offset_y: 0.0,
             offset_scale_x: 1.0, offset_scale_y: 1.0,
-            rotate_mix: 1.0, translate_mix: 0.0, scale_mix: 0.0,
+            rotate_mix: 1.0, translate_mix: 0.0, scale_mix: 0.0, offset_shear_x: 0.0, shear_mix: 0.0,
         };
         solve_transform(&mut sk, &c);
         // target rotation 应回到 source 的 1.0
@@ -135,7 +148,7 @@ mod tests {
             source: 0, bones: vec![1],
             offset_rotate: 0.0, offset_x: 0.0, offset_y: 0.0,
             offset_scale_x: 1.0, offset_scale_y: 1.0,
-            rotate_mix: 0.0, translate_mix: 0.0, scale_mix: 0.0,
+            rotate_mix: 0.0, translate_mix: 0.0, scale_mix: 0.0, offset_shear_x: 0.0, shear_mix: 0.0,
         };
         solve_transform(&mut sk, &c);
         assert!(approx(sk.bones[1].local.rotation, before), "mix=0 不改");
@@ -154,10 +167,31 @@ mod tests {
             source: 0, bones: vec![1],
             offset_rotate: 0.0, offset_x: 0.0, offset_y: 0.0,
             offset_scale_x: 1.0, offset_scale_y: 1.0,
-            rotate_mix: 0.0, translate_mix: 1.0, scale_mix: 0.0,
+            rotate_mix: 0.0, translate_mix: 1.0, scale_mix: 0.0, offset_shear_x: 0.0, shear_mix: 0.0,
         };
         solve_transform(&mut sk, &c);
         // target 应移到 source 位置（增量）
         assert!(approx(sk.bones[1].local.x, 50.0), "x={}", sk.bones[1].local.x);
+    }
+
+    #[test]
+    fn transform_shear_copied_to_target() {
+        // source 有 shearX，shear_mix=1 应复制到 target
+        let mut sk = Skeleton::from_data(&[
+            BoneData { name: "src".into(), parent: None, length: 10.0,
+                setup: BoneLocal { shear_x: 0.5, ..BoneLocal::DEFAULT } },
+            BoneData { name: "tgt".into(), parent: None, length: 10.0,
+                setup: BoneLocal::DEFAULT },
+        ]);
+        sk.update_world();
+        let c = TransformConstraint {
+            source: 0, bones: vec![1],
+            offset_rotate: 0.0, offset_x: 0.0, offset_y: 0.0,
+            offset_scale_x: 1.0, offset_scale_y: 1.0, offset_shear_x: 0.0,
+            rotate_mix: 0.0, translate_mix: 0.0, scale_mix: 0.0, shear_mix: 1.0,
+        };
+        solve_transform(&mut sk, &c);
+        assert!(approx(sk.bones[1].local.shear_x, 0.5),
+            "target shear_x={}, 应 0.5", sk.bones[1].local.shear_x);
     }
 }

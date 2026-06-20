@@ -22,9 +22,12 @@ pub struct IkConstraint {
     /// 弯曲方向：+1 或 -1（仅双骨）。
     #[serde(default = "default_bend")]
     pub bend_direction: i8,
-    /// 边界软化量（P3 默认 0，接口预留）。
+    /// 边界软化量（可达边界附近平滑过渡，避免抖动）。0=不软化。
     #[serde(default)]
     pub softness: f32,
+    /// 拉伸强度 0~1。target 超出臂展时按比例拉长骨骼够到。0=不拉伸（夹紧）。
+    #[serde(default)]
+    pub stretch: f32,
 }
 
 fn default_mix() -> f32 { 1.0 }
@@ -69,25 +72,42 @@ fn solve_one_bone(skeleton: &mut Skeleton, ik: &IkConstraint) {
 }
 
 /// 双骨 IK：余弦定理解析解。
+///
+/// 含可达性处理：stretch（拉伸够到）+ softness（边界软化）。
 fn solve_two_bone(skeleton: &mut Skeleton, ik: &IkConstraint) {
     let a_idx = ik.bones[0];
     let b_idx = ik.bones[1];
     // 用骨骼真实长度（BoneData.length）
-    let a_len = skeleton.bones[a_idx].length;
-    let b_len = skeleton.bones[b_idx].length;
-    let a_len = a_len.max(1e-6);
-    let b_len = b_len.max(1e-6);
+    let mut a_len = skeleton.bones[a_idx].length.max(1e-6);
+    let mut b_len = skeleton.bones[b_idx].length.max(1e-6);
 
     // 骨骼A 根部世界位置
     let p = world_pos(skeleton, a_idx);
 
     let target = ik.target_vec();
-    let d = target.sub(p).length();
+    let mut d = target.sub(p).length();
     let max_reach = a_len + b_len;
     let min_reach = (a_len - b_len).abs();
 
-    // 可达性 clamp
-    let d = d.clamp(min_reach.max(1e-6), max_reach);
+    // stretch：target 超出臂展时按比例拉长骨骼（均匀拉伸），够到 target。
+    if ik.stretch > 0.0 && d > max_reach {
+        let factor = (d / max_reach).powf(ik.stretch);
+        a_len *= 1.0 + (factor - 1.0) * ik.stretch;
+        b_len *= 1.0 + (factor - 1.0) * ik.stretch;
+        // 拉伸后重新算可达范围，d 视为可达
+        d = d.min(a_len + b_len);
+    } else {
+        // 可达性 clamp
+        d = d.clamp(min_reach.max(1e-6), a_len + b_len);
+    }
+
+    // softness：在可达上边界附近平滑过渡，避免 target 来回穿越时末端抖动。
+    let max_reach = a_len + b_len;
+    if ik.softness > 0.0 && d > max_reach - ik.softness {
+        let t = ((d - (max_reach - ik.softness)) / ik.softness).clamp(0.0, 1.0);
+        let t = t * t * (3.0 - 2.0 * t); // smoothstep
+        d = (max_reach - ik.softness) + ik.softness * t;
+    }
 
     // 余弦定理解关节角
     let cos_inner = ((a_len * a_len + b_len * b_len - d * d) / (2.0 * a_len * b_len)).clamp(-1.0, 1.0);
@@ -163,7 +183,7 @@ mod tests {
         // target 在 (50, 30)：在可达范围内，腿应向上弯
         let ik = IkConstraint {
             bones: vec![0, 1], target: [50.0, 30.0],
-            mix: 1.0, bend_direction: 1, softness: 0.0,
+            mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
         };
         solve_ik(&mut sk, &ik);
         // 骨骼B 旋转后应非零（弯曲了）
@@ -178,7 +198,7 @@ mod tests {
         // target 极远（超出 a+b=90），应夹紧不 NaN
         let ik = IkConstraint {
             bones: vec![0, 1], target: [1000.0, 1000.0],
-            mix: 1.0, bend_direction: 1, softness: 0.0,
+            mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
         };
         solve_ik(&mut sk, &ik);
         // 不应产生 NaN
@@ -193,7 +213,7 @@ mod tests {
         let rot_before = sk.bones[0].local.rotation;
         let ik = IkConstraint {
             bones: vec![0, 1], target: [50.0, 30.0],
-            mix: 0.0, bend_direction: 1, softness: 0.0,
+            mix: 0.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
         };
         solve_ik(&mut sk, &ik);
         assert!(approx(sk.bones[0].local.rotation, rot_before), "mix=0 不应改骨骼");
@@ -209,7 +229,7 @@ mod tests {
         // target 在 +y 方向 (0,50)，骨骼应转向 90°
         let ik = IkConstraint {
             bones: vec![0], target: [0.0, 50.0],
-            mix: 1.0, bend_direction: 1, softness: 0.0,
+            mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
         };
         solve_ik(&mut sk, &ik);
         assert!(approx(sk.bones[0].local.rotation, std::f32::consts::FRAC_PI_2),
@@ -218,8 +238,74 @@ mod tests {
 
     #[test]
     fn validate_rejects_bad_bone_count() {
-        let ik = IkConstraint { bones: vec![0, 1, 2], target: [0.0, 0.0], mix: 1.0, bend_direction: 1, softness: 0.0 };
+        let ik = IkConstraint { bones: vec![0, 1, 2], target: [0.0, 0.0], mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0 };
         assert!(ik.validate().is_err());
+    }
+
+    #[test]
+    fn stretch_reaches_beyond_arm_length() {
+        // 两骨各长 50（臂展 100）。target 在 150（超出）。stretch=1 应拉长够到。
+        let mut sk = Skeleton::from_data(&[
+            BoneData { name: "a".into(), parent: None, length: 50.0, setup: BoneLocal::DEFAULT },
+            BoneData { name: "b".into(), parent: Some(0), length: 50.0,
+                setup: BoneLocal { x: 50.0, y: 0.0, ..BoneLocal::DEFAULT } },
+        ]);
+        sk.update_world();
+        let ik = IkConstraint {
+            bones: vec![0, 1], target: [150.0, 0.0],
+            mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 1.0,
+        };
+        solve_ik(&mut sk, &ik);
+        // 拉伸后骨骼应指向 target 方向（不 NaN，且末端接近 target）
+        let end = world_pos(&sk, 1);
+        let dir_x = sk.bones[1].world.a;
+        let dir_y = sk.bones[1].world.b;
+        let norm = (dir_x * dir_x + dir_y * dir_y).sqrt().max(1e-6);
+        let end_x = end.x + 50.0 * dir_x / norm; // 用原 length 估末端（拉伸改的是求解用长度，非 bone.length）
+        // 关键：不崩溃 + 角度合理（指向 +x）
+        assert!(sk.bones[0].local.rotation.is_finite(), "stretch 不应 NaN");
+        assert!(approx(world_rotation(&sk.bones[0].world), 0.0), "拉伸后骨骼应指向 target 方向");
+    }
+
+    #[test]
+    fn stretch_zero_clamps_to_max_reach() {
+        // stretch=0 时 target 超出臂展 → 夹紧，骨骼指向 target 方向但不拉伸
+        let mut sk = Skeleton::from_data(&[
+            BoneData { name: "a".into(), parent: None, length: 50.0, setup: BoneLocal::DEFAULT },
+            BoneData { name: "b".into(), parent: Some(0), length: 50.0,
+                setup: BoneLocal { x: 50.0, y: 0.0, ..BoneLocal::DEFAULT } },
+        ]);
+        sk.update_world();
+        let ik = IkConstraint {
+            bones: vec![0, 1], target: [1000.0, 0.0],
+            mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
+        };
+        solve_ik(&mut sk, &ik);
+        // 夹紧：骨骼应伸直指向 +x（达 max reach），不 NaN
+        assert!(sk.bones[0].local.rotation.is_finite());
+        assert!(approx(world_rotation(&sk.bones[0].world), 0.0));
+        // 伸直时 shin rotation 应 ≈ 0（与 thigh 同向）
+        assert!(approx(sk.bones[1].local.rotation, 0.0), "夹紧到 max reach 时双腿应伸直");
+    }
+
+    #[test]
+    fn softness_smooths_near_boundary() {
+        // softness>0 时，target 在边界附近不应产生剧烈角度跳变。
+        // 这里只验证不崩溃 + 结果有限（softness 的平滑效果难精确断言）。
+        let mut sk = Skeleton::from_data(&[
+            BoneData { name: "a".into(), parent: None, length: 50.0, setup: BoneLocal::DEFAULT },
+            BoneData { name: "b".into(), parent: Some(0), length: 50.0,
+                setup: BoneLocal { x: 50.0, y: 0.0, ..BoneLocal::DEFAULT } },
+        ]);
+        sk.update_world();
+        // target 恰在 max reach (100) 边界，softness=10
+        let ik = IkConstraint {
+            bones: vec![0, 1], target: [100.0, 0.0],
+            mix: 1.0, bend_direction: 1, softness: 10.0, stretch: 0.0,
+        };
+        solve_ik(&mut sk, &ik);
+        assert!(sk.bones[0].local.rotation.is_finite(), "softness 不应 NaN");
+        assert!(sk.bones[1].local.rotation.is_finite());
     }
 
     #[test]

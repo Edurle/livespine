@@ -78,7 +78,7 @@ mod tests {
         let before = sk.bones[1].local.rotation;
         let constraints = vec![Constraint::Ik(IkConstraint {
             bones: vec![0, 1], target: [50.0, 30.0],
-            mix: 1.0, bend_direction: 1, softness: 0.0,
+            mix: 1.0, bend_direction: 1, softness: 0.0, stretch: 0.0,
         })];
         let mut states = PhysicsStateMap::new();
         solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
@@ -99,7 +99,7 @@ mod tests {
             source: 0, bones: vec![1],
             offset_rotate: 0.0, offset_x: 0.0, offset_y: 0.0,
             offset_scale_x: 1.0, offset_scale_y: 1.0,
-            rotate_mix: 1.0, translate_mix: 0.0, scale_mix: 0.0,
+            rotate_mix: 1.0, translate_mix: 0.0, scale_mix: 0.0, offset_shear_x: 0.0, shear_mix: 0.0,
         })];
         solve_pipeline(&mut sk, &constraints, &mut states, 0.0);
         assert!((sk.bones[1].local.rotation - 1.0).abs() < 1e-3, "Transform 应执行");
@@ -116,7 +116,7 @@ mod tests {
         let constraints = vec![Constraint::Physics(PhysicsConstraint {
             bone: 0, bone_inertia: 0.0, strength: 0.0, damping: 0.5,
             gravity: [0.0, -50.0], mass: 1.0,
-            angle_min: -10.0, angle_max: 10.0, rotate_mix: 1.0,
+            angle_min: -10.0, angle_max: 10.0, rotate_mix: 1.0, translate_mix: 0.0, translate_limit: 50.0,
         })];
         for _ in 0..10 {
             solve_pipeline(&mut sk, &constraints, &mut states, 1.0 / 60.0);

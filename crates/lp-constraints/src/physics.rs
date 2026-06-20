@@ -36,6 +36,12 @@ pub struct PhysicsConstraint {
     /// 旋转混合 0~1。
     #[serde(default = "one")]
     pub rotate_mix: f32,
+    /// 平移混合 0~1（0=只旋转物理，1=加位移物理）。
+    #[serde(default)]
+    pub translate_mix: f32,
+    /// 位移限制（local 空间，像素）。
+    #[serde(default = "default_translate_limit")]
+    pub translate_limit: f32,
 }
 
 fn default_inertia() -> f32 { 0.5 }
@@ -45,6 +51,7 @@ fn default_gravity() -> [f32; 2] { [0.0, -50.0] }
 fn one() -> f32 { 1.0 }
 fn default_min() -> f32 { -1.0 }
 fn default_max() -> f32 { 1.0 }
+fn default_translate_limit() -> f32 { 50.0 }
 
 impl PhysicsConstraint {
     pub fn validate(&self) -> Result<(), String> {
@@ -58,8 +65,15 @@ impl PhysicsConstraint {
 /// Physics 跨帧运行时状态（非序列化）。
 #[derive(Clone, Debug, Default)]
 pub struct PhysicsRuntimeState {
+    // 旋转物理状态
     pub angle: f32,
     pub velocity: f32,
+    // 平移物理状态
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub velocity_x: f32,
+    pub velocity_y: f32,
+    // 父级速度估算（旋转和平移共用）
     pub last_world_x: f32,
     pub last_world_y: f32,
     pub initialized: bool,
@@ -120,8 +134,35 @@ pub fn solve_physics(
         state.velocity = 0.0;
     }
 
-    // 5. apply 到 bone.local.rotation（mix）
+    // 5. apply 旋转到 bone.local.rotation（mix）
     skeleton.bones[c.bone].local.rotation += state.angle * c.rotate_mix;
+
+    // 6. 平移物理（translate_mix > 0 时）：阻尼弹簧，受重力 + 父级惯性影响
+    if c.translate_mix > 0.0 {
+        // 力 = 重力 + 弹簧回复（拉回原位）+ 阻尼 + 父级惯性
+        let force_x = c.gravity[0] - c.strength * state.offset_x - c.damping * state.velocity_x
+            - vel_x * c.bone_inertia;
+        let force_y = c.gravity[1] - c.strength * state.offset_y - c.damping * state.velocity_y
+            - vel_y * c.bone_inertia;
+        // 半隐式 Euler
+        state.velocity_x += force_x / c.mass * dt;
+        state.velocity_y += force_y / c.mass * dt;
+        state.offset_x += state.velocity_x * dt;
+        state.offset_y += state.velocity_y * dt;
+        // 位移限制（防飞出）
+        let limit = c.translate_limit;
+        if state.offset_x.abs() > limit {
+            state.offset_x = state.offset_x.signum() * limit;
+            state.velocity_x = 0.0;
+        }
+        if state.offset_y.abs() > limit {
+            state.offset_y = state.offset_y.signum() * limit;
+            state.velocity_y = 0.0;
+        }
+        // apply 到 bone.local.x/y（mix）
+        skeleton.bones[c.bone].local.x += state.offset_x * c.translate_mix;
+        skeleton.bones[c.bone].local.y += state.offset_y * c.translate_mix;
+    }
 }
 
 #[cfg(test)]
@@ -145,7 +186,7 @@ mod tests {
         let c = PhysicsConstraint {
             bone: 0, bone_inertia: 0.0, strength: 0.0, damping: 0.5,
             gravity: [0.0, -50.0], mass: 1.0,
-            angle_min: -10.0, angle_max: 10.0, rotate_mix: 1.0,
+            angle_min: -10.0, angle_max: 10.0, rotate_mix: 1.0, translate_mix: 0.0, translate_limit: 50.0,
         };
         let mut state = PhysicsRuntimeState::default();
         let angle_before = state.angle;
@@ -167,7 +208,7 @@ mod tests {
         let c = PhysicsConstraint {
             bone: 0, bone_inertia: 0.5, strength: 0.3, damping: 0.85,
             gravity: [0.0, -50.0], mass: 1.0,
-            angle_min: -1.0, angle_max: 1.0, rotate_mix: 1.0,
+            angle_min: -1.0, angle_max: 1.0, rotate_mix: 1.0, translate_mix: 0.0, translate_limit: 50.0,
         };
         let mut state = PhysicsRuntimeState::default();
         for _ in 0..600 {
@@ -192,7 +233,7 @@ mod tests {
         let c = PhysicsConstraint {
             bone: 0, bone_inertia: 0.0, strength: 0.0, damping: 0.0,
             gravity: [0.0, -10000.0], mass: 1.0,
-            angle_min: -0.5, angle_max: 0.5, rotate_mix: 1.0,
+            angle_min: -0.5, angle_max: 0.5, rotate_mix: 1.0, translate_mix: 0.0, translate_limit: 50.0,
         };
         let mut state = PhysicsRuntimeState::default();
         for _ in 0..300 {
@@ -212,11 +253,62 @@ mod tests {
         let c = PhysicsConstraint {
             bone: 0, bone_inertia: 0.5, strength: 0.3, damping: 0.85,
             gravity: [0.0, -50.0], mass: 1.0,
-            angle_min: -1.0, angle_max: 1.0, rotate_mix: 1.0,
+            angle_min: -1.0, angle_max: 1.0, rotate_mix: 1.0, translate_mix: 0.0, translate_limit: 50.0,
         };
         let mut state = PhysicsRuntimeState::default();
         let before = sk.bones[0].local.rotation;
         solve_physics(&mut sk, &c, &mut state, 0.0);
         assert!(approx(sk.bones[0].local.rotation, before), "dt=0 不应改");
+    }
+
+    #[test]
+    fn translate_physics_moves_bone() {
+        // translate_mix>0 + 重力 → 骨骼 local.y 应变化（下垂方向）
+        let mut sk = Skeleton::from_data(&[BoneData {
+            name: "b".into(), parent: None, length: 10.0,
+            setup: BoneLocal::DEFAULT,
+        }]);
+        sk.update_world();
+        let c = PhysicsConstraint {
+            bone: 0, bone_inertia: 0.0, strength: 0.1, damping: 0.8,
+            gravity: [0.0, -50.0], mass: 1.0,
+            angle_min: -10.0, angle_max: 10.0,
+            rotate_mix: 0.0, translate_mix: 1.0, translate_limit: 50.0,
+        };
+        let mut state = PhysicsRuntimeState::default();
+        let y_before = sk.bones[0].local.y;
+        for _ in 0..30 {
+            solve_physics(&mut sk, &c, &mut state, 1.0 / 60.0);
+            sk.update_world();
+        }
+        // 重力向下，offset_y 应为负，local.y 应减小
+        assert!(
+            sk.bones[0].local.y < y_before,
+            "translate 物理应让 y 减小（重力下垂），y_before={y_before}, y={}",
+            sk.bones[0].local.y
+        );
+        assert!(state.offset_y.is_finite(), "offset_y 不应 NaN");
+    }
+
+    #[test]
+    fn translate_mix_zero_no_move() {
+        // translate_mix=0 → 不产生位移
+        let mut sk = Skeleton::from_data(&[BoneData {
+            name: "b".into(), parent: None, length: 10.0,
+            setup: BoneLocal::DEFAULT,
+        }]);
+        sk.update_world();
+        let c = PhysicsConstraint {
+            bone: 0, bone_inertia: 0.0, strength: 0.1, damping: 0.8,
+            gravity: [0.0, -50.0], mass: 1.0,
+            angle_min: -10.0, angle_max: 10.0,
+            rotate_mix: 0.0, translate_mix: 0.0, translate_limit: 50.0,
+        };
+        let mut state = PhysicsRuntimeState::default();
+        let y_before = sk.bones[0].local.y;
+        for _ in 0..30 {
+            solve_physics(&mut sk, &c, &mut state, 1.0 / 60.0);
+        }
+        assert!(approx(sk.bones[0].local.y, y_before), "translate_mix=0 不应位移");
     }
 }
