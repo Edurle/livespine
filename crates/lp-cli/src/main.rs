@@ -91,6 +91,11 @@ fn run_render(path: &Path, out: &Path, width: u32, height: u32, anim: Option<&st
         skeleton.update_world();
     }
 
+    // 约束求解（IK 等，按声明顺序）。每个约束后流水线内部会重算 world。
+    if !file.constraints.is_empty() {
+        lp_constraints::solve_pipeline(&mut skeleton, &file.constraints);
+    }
+
     // 变换每个 region → RegionDraw（4 顶点 position + uv）
     // region 用 Unity 式父子变换（骨骼动顶点动），非 LBS
     let mut draws = Vec::new();

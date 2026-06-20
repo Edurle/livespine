@@ -6,6 +6,7 @@
 //! 格式见 docs 06-数据模型与序列化。
 
 use lp_anim::Animation;
+use lp_constraints::Constraint;
 use lp_core::attach::RegionAttachment;
 use lp_core::skeleton::{BoneData, Skeleton};
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,8 @@ pub struct LpFile {
     pub regions: Vec<RegionAttachment>,
     #[serde(default)]
     pub animations: Vec<Animation>,
+    #[serde(default)]
+    pub constraints: Vec<Constraint>,
 }
 
 /// 骨架定义（P0：仅骨骼数组）。
@@ -57,6 +60,9 @@ impl LpFile {
         }
         for a in &self.animations {
             a.validate().map_err(LpError::Invalid)?;
+        }
+        for c in &self.constraints {
+            c.validate().map_err(LpError::Invalid)?;
         }
         Ok(())
     }
@@ -103,6 +109,7 @@ mod tests {
             },
             regions: vec![RegionAttachment::centered("rect", 0, 4.0, 2.0)],
             animations: vec![],
+            constraints: vec![],
         };
         let json = f.to_json_pretty().unwrap();
         let back = LpFile::from_json(&json).unwrap();
@@ -135,6 +142,7 @@ mod tests {
                     ],
                 }],
             }],
+            constraints: vec![],
         };
         assert!(f.find_anim("wave").is_some());
         assert!(f.find_anim("nope").is_none());

@@ -9,6 +9,7 @@ description = "Livepine .lp/.lpc 序列化与校验"
 [dependencies]
 lp-core = { path = "../lp-core" }
 lp-anim = { path = "../lp-anim" }
+lp-constraints = { path = "../lp-constraints" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror = "1"

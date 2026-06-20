@@ -4,6 +4,7 @@ members = [
     "crates/lp-core",
     "crates/lp-io",
     "crates/lp-anim",
+    "crates/lp-constraints",
     "crates/lp-render",
     "crates/lp-cli",
 ]

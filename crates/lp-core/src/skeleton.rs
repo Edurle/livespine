@@ -25,6 +25,8 @@ pub struct Bone {
     pub world: Affine,
     /// 绑定姿势世界矩阵的逆（蒙皮用，setup 后固定）。
     pub bind_world_inverse: Affine,
+    /// 骨骙长度（来自 BoneData，IK 等约束用）。
+    pub length: f32,
 }
 
 /// 骨架实例：骨骼数组 + parent 索引（与 BoneData 一一对应）。
@@ -46,6 +48,7 @@ impl Skeleton {
             local: b.setup,
             world: Affine::IDENTITY,
             bind_world_inverse: Affine::IDENTITY,
+            length: b.length,
         }).collect();
         let parents = data.iter().map(|b| b.parent).collect();
         Self { bones, parents }

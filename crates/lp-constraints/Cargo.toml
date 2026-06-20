@@ -1,0 +1,11 @@
+[package]
+name = "lp-constraints"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Livepine 约束系统（IK / 求解流水线）"
+
+[dependencies]
+lp-core = { path = "../lp-core" }
+serde.workspace = true

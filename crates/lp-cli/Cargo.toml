@@ -14,4 +14,5 @@ path = "src/main.rs"
 lp-core = { path = "../lp-core" }
 lp-io = { path = "../lp-io" }
 lp-anim = { path = "../lp-anim" }
+lp-constraints = { path = "../lp-constraints" }
 lp-render = { path = "../lp-render" }
