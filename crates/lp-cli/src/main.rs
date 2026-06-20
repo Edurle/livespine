@@ -3,7 +3,7 @@
 //! P0: `solve` 打印坐标。
 //! P1: `render` 离屏渲染到 PNG。
 
-use lp_core::skin::skin_region;
+use lp_core::skin::transform_region;
 use lp_render::{RegionDraw, Renderer};
 use std::path::Path;
 use std::process::ExitCode;
@@ -64,7 +64,7 @@ fn run_solve(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n=== 顶点坐标 ===");
     for region in &file.regions {
-        let pts = skin_region(region, &skeleton);
+        let pts = transform_region(region, &skeleton);
         for (i, p) in pts.iter().enumerate() {
             println!("vertex[{i}]  ({:.4}, {:.4})", p.x, p.y);
         }
@@ -76,10 +76,11 @@ fn run_render(path: &Path, out: &Path, width: u32, height: u32) -> Result<(), Bo
     let file = lp_io::LpFile::load(path)?;
     let skeleton = file.build_skeleton();
 
-    // 蒙皮每个 region → RegionDraw（4 顶点 position + uv）
+    // 变换每个 region → RegionDraw（4 顶点 position + uv）
+    // region 用 Unity 式父子变换（骨骼动顶点动），非 LBS
     let mut draws = Vec::new();
     for region in &file.regions {
-        let pts = skin_region(region, &skeleton);
+        let pts = transform_region(region, &skeleton);
         if pts.len() != 4 {
             return Err(format!("region '{}' 顶点数 {} ≠ 4（P1 仅支持矩形 region）", region.name, pts.len()).into());
         }
