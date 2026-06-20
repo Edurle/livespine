@@ -50,11 +50,20 @@ impl LpFile {
         Self::from_json(&text)
     }
 
-    /// 基本校验（见 docs 06 §6.4）。前序排列由 Skeleton::from_data 再校验。
+    /// 基本校验（见 docs 06 §6.4）。前序排列/无环由 Skeleton::try_from_data 校验。
     pub fn validate(&self) -> Result<(), LpError> {
         if self.format != "lp" {
             return Err(LpError::Invalid("format 字段必须为 'lp'".into()));
         }
+        // 名字唯一性（bone / animation）—— AI 按名操作，重名会取第一个导致行为不可预期
+        check_unique_names(
+            self.skeleton.bones.iter().map(|b| b.name.as_str()),
+            "骨骼",
+        )?;
+        check_unique_names(
+            self.animations.iter().map(|a| a.name.as_str()),
+            "动画",
+        )?;
         for r in &self.regions {
             r.validate_weights().map_err(LpError::Invalid)?;
         }
@@ -73,12 +82,29 @@ impl LpFile {
     }
 
     /// 构建运行时骨架实例（已 update_world + precompute_bind_inverse）。
-    pub fn build_skeleton(&self) -> Skeleton {
-        let mut sk = Skeleton::from_data(&self.skeleton.bones);
+    ///
+    /// 校验失败（parent 越界/成环）返回错误，不 panic。
+    pub fn build_skeleton(&self) -> Result<Skeleton, LpError> {
+        let mut sk = Skeleton::try_from_data(&self.skeleton.bones)
+            .map_err(LpError::Invalid)?;
         sk.update_world();
         sk.precompute_bind_inverse();
-        sk
+        Ok(sk)
     }
+}
+
+/// 校验名字唯一性。重复返回错误（指出重复的名字）。
+fn check_unique_names<'a, I: Iterator<Item = &'a str>>(
+    names: I,
+    kind: &str,
+) -> Result<(), LpError> {
+    let mut seen = std::collections::HashSet::new();
+    for name in names {
+        if !seen.insert(name) {
+            return Err(LpError::Invalid(format!("{kind}名字重复: '{name}'")));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -146,5 +172,45 @@ mod tests {
         };
         assert!(f.find_anim("wave").is_some());
         assert!(f.find_anim("nope").is_none());
+    }
+
+    #[test]
+    fn duplicate_bone_name_rejected() {
+        let f = LpFile {
+            format: "lp".into(),
+            version: "0.1.0".into(),
+            skeleton: SkeletonDef {
+                bones: vec![
+                    BoneData { name: "root".into(), parent: None, length: 1.0, setup: BoneLocal::DEFAULT },
+                    BoneData { name: "root".into(), parent: Some(0), length: 1.0, setup: BoneLocal::DEFAULT },
+                ],
+            },
+            regions: vec![],
+            animations: vec![],
+            constraints: vec![],
+        };
+        let err = f.validate();
+        assert!(err.is_err(), "重复骨骼名应被拒绝");
+        assert!(err.unwrap_err().to_string().contains("骨骼名字重复"));
+    }
+
+    #[test]
+    fn duplicate_anim_name_rejected() {
+        let f = LpFile {
+            format: "lp".into(),
+            version: "0.1.0".into(),
+            skeleton: SkeletonDef {
+                bones: vec![BoneData { name: "a".into(), parent: None, length: 1.0, setup: BoneLocal::DEFAULT }],
+            },
+            regions: vec![],
+            animations: vec![
+                Animation { name: "wave".into(), duration: 1.0, timelines: vec![] },
+                Animation { name: "wave".into(), duration: 1.0, timelines: vec![] },
+            ],
+            constraints: vec![],
+        };
+        let err = f.validate();
+        assert!(err.is_err(), "重复动画名应被拒绝");
+        assert!(err.unwrap_err().to_string().contains("动画名字重复"));
     }
 }

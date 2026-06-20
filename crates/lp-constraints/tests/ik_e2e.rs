@@ -109,3 +109,36 @@ fn different_targets_different_poses() {
         "不同 target 应产生不同 thigh rotation"
     );
 }
+
+#[test]
+fn bend_direction_mirrors_pose() {
+    // 同样 target，bendDirection +1 vs -1 应产生镜像姿态（关节角符号相反）
+    let target = [100.0, 100.0];
+
+    let mut sk_pos = build_leg();
+    sk_pos.update_world();
+    let mut st_pos = lp_constraints::PhysicsStateMap::new();
+    solve_pipeline(&mut sk_pos, &[Constraint::Ik(IkConstraint {
+        bones: vec![0, 1], target, mix: 1.0, bend_direction: 1, softness: 0.0,
+    })], &mut st_pos, 0.0);
+
+    let mut sk_neg = build_leg();
+    sk_neg.update_world();
+    let mut st_neg = lp_constraints::PhysicsStateMap::new();
+    solve_pipeline(&mut sk_neg, &[Constraint::Ik(IkConstraint {
+        bones: vec![0, 1], target, mix: 1.0, bend_direction: -1, softness: 0.0,
+    })], &mut st_neg, 0.0);
+
+    // shin rotation 应符号相反（bendDirection 控制弯曲方向）。
+    // 注：因初始姿态非对称，不要求严格镜像（和=0），只要求异号且差异显著。
+    let shin_pos = sk_pos.bones[1].local.rotation;
+    let shin_neg = sk_neg.bones[1].local.rotation;
+    assert!(
+        shin_pos * shin_neg < 0.0,
+        "bendDirection ±1 应让 shin 异号：+1 得 {shin_pos:.3}, -1 得 {shin_neg:.3}"
+    );
+    assert!(
+        (shin_pos - shin_neg).abs() > 0.5,
+        "两种 bendDirection 应产生明显不同的 shin 角度"
+    );
+}

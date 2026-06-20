@@ -53,12 +53,16 @@ fn load_skeleton(path: String, state: State<'_, AppState>) -> Result<SkeletonInf
     load_from(&path, state)
 }
 
-/// 加载默认 demo_char.lp（P4 简化：前端启动即加载）。
+/// 加载默认 stickman.lp（P4 简化：前端启动即加载）。
+///
+/// 路径解析顺序（避免硬编码绝对路径，提升可移植性）：
+/// 1. 环境变量 `LIVEPINE_FIXTURE`（优先）
+/// 2. 相对路径（开发时 cargo run 在 src-tauri 目录）
 #[tauri::command]
 fn load_default(state: State<'_, AppState>) -> Result<SkeletonInfo, String> {
-    // 绝对路径，避免相对路径在工作目录歧义。
-    let path = r"D:\Files\coding\ai_code\livepine\tests\fixtures\stickman.lp";
-    load_from(path, state)
+    let path = std::env::var("LIVEPINE_FIXTURE")
+        .unwrap_or_else(|_| "../../tests/fixtures/stickman.lp".to_string());
+    load_from(&path, state)
 }
 
 fn load_from(path: &str, state: State<'_, AppState>) -> Result<SkeletonInfo, String> {
@@ -86,7 +90,7 @@ fn sample_pose(
     let guard = state.file.lock().map_err(|e| e.to_string())?;
     let file = guard.as_ref().ok_or("未加载骨架")?;
 
-    let mut skeleton = file.build_skeleton();
+    let mut skeleton = file.build_skeleton().map_err(|e| e.to_string())?;
 
     // 动画 apply
     if let Some(name) = &anim {

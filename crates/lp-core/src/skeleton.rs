@@ -38,12 +38,23 @@ pub struct Skeleton {
 }
 
 impl Skeleton {
-    /// 从 BoneData 列表构建实例。
+    /// 从 BoneData 列表构建实例（失败则 panic）。
     ///
-    /// **前序排列不变式**：bones 必须父在子前，违反则 panic。
+    /// 供测试/可信数据用。加载不可信数据请用 [`try_from_data`]（返回 Result）。
     /// 初始化时 local = setup，随后应调用 `update_world` + `precompute_bind_inverse`。
     pub fn from_data(data: &[BoneData]) -> Self {
-        Self::validate_preorder(data);
+        Self::try_from_data(data).expect("Skeleton::from_data 校验失败")
+    }
+
+    /// 从 BoneData 列表构建实例，校验失败返回错误（不 panic）。
+    ///
+    /// 校验内容（docs 06 §6.4）：
+    /// - parent 索引不越界
+    /// - 前序排列（父在子前）—— 等价于无环
+    ///
+    /// 加载不可信数据（如用户/AI 提供的 `.lp`）应使用此方法。
+    pub fn try_from_data(data: &[BoneData]) -> Result<Self, String> {
+        Self::validate(data)?;
         let bones = data.iter().map(|b| Bone {
             local: b.setup,
             world: Affine::IDENTITY,
@@ -51,20 +62,30 @@ impl Skeleton {
             length: b.length,
         }).collect();
         let parents = data.iter().map(|b| b.parent).collect();
-        Self { bones, parents }
+        Ok(Self { bones, parents })
     }
 
-    /// 校验前序排列：每根骨骼的 parent 索引必须 < 自身索引。
-    fn validate_preorder(data: &[BoneData]) {
+    /// 校验骨骼数据：parent 越界 + 前序排列（无环）。
+    fn validate(data: &[BoneData]) -> Result<(), String> {
         for (i, b) in data.iter().enumerate() {
             if let Some(p) = b.parent {
-                assert!(
-                    p < i,
-                    "骨骼 '{}' (idx {}) 的 parent idx {} 不在前序位置；骨骼数组必须父在子前",
-                    b.name, i, p
-                );
+                // 越界
+                if p >= data.len() {
+                    return Err(format!(
+                        "骨骼 '{}' (idx {}) 的 parent idx {} 越界（共 {} 根骨骼）",
+                        b.name, i, p, data.len()
+                    ));
+                }
+                // 前序：父必须在子之前（p < i）。满足此条件即无环。
+                if p >= i {
+                    return Err(format!(
+                        "骨骼 '{}' (idx {}) 的 parent idx {} 不在前序位置；骨骼数组必须父在子前（违反则成环）",
+                        b.name, i, p
+                    ));
+                }
             }
         }
+        Ok(())
     }
 
     /// 自顶向下算 world 矩阵（前序遍历）。
@@ -159,6 +180,30 @@ mod tests {
             BoneData { name: "root".into(), parent: None, length: 1.0, setup: BoneLocal::DEFAULT },
         ];
         let _ = Skeleton::from_data(&data);
+    }
+
+    #[test]
+    fn try_from_data_cycle_returns_error() {
+        // 成环（parent 指向自己或形成环）→ try_from_data 返回错误，不 panic
+        let data = vec![
+            BoneData { name: "child".into(), parent: Some(1), length: 1.0, setup: BoneLocal::DEFAULT },
+            BoneData { name: "root".into(), parent: None, length: 1.0, setup: BoneLocal::DEFAULT },
+        ];
+        let result = Skeleton::try_from_data(&data);
+        assert!(result.is_err(), "成环应返回错误");
+        let err = result.unwrap_err();
+        assert!(err.contains("前序") || err.contains("环"), "错误信息应提及前序/环: {err}");
+    }
+
+    #[test]
+    fn try_from_data_parent_out_of_range_returns_error() {
+        // parent 索引越界
+        let data = vec![BoneData {
+            name: "a".into(), parent: Some(5), length: 1.0, setup: BoneLocal::DEFAULT,
+        }];
+        let result = Skeleton::try_from_data(&data);
+        assert!(result.is_err(), "parent 越界应返回错误");
+        assert!(result.unwrap_err().contains("越界"));
     }
 
     #[test]

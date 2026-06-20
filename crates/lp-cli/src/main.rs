@@ -56,7 +56,7 @@ fn parse_opt(args: &[String], flag: &str, default: u32) -> u32 {
 
 fn run_solve(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let file = lp_io::LpFile::load(path)?;
-    let skeleton = file.build_skeleton();
+    let skeleton = file.build_skeleton()?;
 
     println!("=== 骨骼 world 矩阵 ===");
     for (i, b) in skeleton.bones.iter().enumerate() {
@@ -79,7 +79,7 @@ fn run_solve(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_render(path: &Path, out: &Path, width: u32, height: u32, anim: Option<&str>, time: Option<f32>) -> Result<(), Box<dyn std::error::Error>> {
     let file = lp_io::LpFile::load(path)?;
-    let mut skeleton = file.build_skeleton();
+    let mut skeleton = file.build_skeleton()?;
 
     // 若指定动画，采样第 time 秒并 apply（在 setup 之上）
     if let (Some(anim_name), Some(t)) = (anim, time) {

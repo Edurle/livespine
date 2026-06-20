@@ -8,7 +8,7 @@ use std::collections::HashMap;
 fn main() {
     let json = include_str!("../../../tests/fixtures/stickman.lp");
     let file = lp_io::LpFile::from_json(json).unwrap();
-    let sk = file.build_skeleton();
+    let sk = file.build_skeleton().unwrap();
 
     println!("=== setup 骨骼几何 ===");
     for (i, b) in sk.bones.iter().enumerate() {
@@ -36,7 +36,7 @@ fn main() {
 
     // 模拟 wave 动画 + Physics 推进多帧，看披风是否变形
     if let Some(anim) = file.find_anim("wave") {
-        let mut sk = file.build_skeleton();
+        let mut sk = file.build_skeleton().unwrap();
         sk.update_world();
         let mut states: HashMap<usize, lp_constraints::PhysicsRuntimeState> = HashMap::new();
         let dt = 1.0_f32 / 60.0;
